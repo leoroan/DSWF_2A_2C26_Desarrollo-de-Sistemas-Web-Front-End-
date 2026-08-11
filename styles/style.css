@@ -13,6 +13,15 @@
 
 /* ---------- Tipografía general ---------- */
 body {
+  font-family:
+    "Poppins",
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
   font-size: 1rem;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
@@ -291,5 +300,29 @@ footer a:hover {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+ * FOTO DE PERFIL — EFECTO MONEDA
+ * ============================================================ */
+
+.profile-coin {
+  perspective: 800px;
+  transform-style: preserve-3d;
+  transition: transform 0.2s ease;
+}
+
+.profile-coin:hover {
+  animation: profileCoinFlip 1.2s ease-in-out;
+}
+
+@keyframes profileCoinFlip {
+  from {
+    transform: rotateY(0deg);
+  }
+
+  to {
+    transform: rotateY(360deg);
   }
 }
