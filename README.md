@@ -1,9 +1,3 @@
-# DSWF_2A_2C26_Desarrollo-de-Sistemas-Web-Front-End-
-
-Aquí reúno el código, el proceso y las decisiones de cada proyecto. Este es el lugar desde el que voy a compartir mis entregas y, más adelante, publicar mi trabajo.
-
----
-
 ## Sobre este repositorio
 
 Este repositorio funciona como **fuente de contenido** de una SPA documental estática. El `README.md` de cada branch se renderiza automáticamente en la interfaz web, de modo que editar el Markdown y hacer _push_ es suficiente para actualizar el sitio.
