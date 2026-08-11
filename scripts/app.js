@@ -57,16 +57,6 @@ const CONFIG = {
       readme: "README.md",
       visible: false,
     },
-    {
-      id: "los-prompts",
-      repository: "leoroan/DSWF_2A_2C26_Desarrollo-de-Sistemas-Web-Front-End-",
-      branch: "los_prompts",
-      title: "Prompts utilizados",
-      description:
-        "Documentación de los prompts utilizados durante el desarrollo del portfolio.",
-      readme: "README.md",
-      visible: false,
-    },
   ],
 
   cache: {
@@ -222,11 +212,11 @@ function getProjectRepository(project) {
   );
 }
 
-function getRawReadmeUrl(project) {
+function getRawReadmeUrl(project, readme = project.readme) {
   const repository = getProjectRepository(project);
 
   return new URL(
-    `${project.branch}/${project.readme}`,
+    `${project.branch}/${readme}`,
     `https://raw.githubusercontent.com/${repository}/`,
   ).href;
 }
@@ -273,8 +263,8 @@ function createFetchError(code) {
   return error;
 }
 
-async function fetchReadme(project, signal) {
-  const response = await fetch(getRawReadmeUrl(project), {
+async function fetchReadme(project, readme, signal) {
+  const response = await fetch(getRawReadmeUrl(project, readme), {
     signal,
   });
 
@@ -351,6 +341,22 @@ function applyResourceUrls(container, project) {
 
     if (/^data:/i.test(href)) {
       link.removeAttribute("href");
+      return;
+    }
+
+    // Archivos Markdown internos → SPA
+    if (/\.md(?:#.*)?$/i.test(href) && !isExternalUrl(href)) {
+      const cleanPath = href.split("#")[0];
+
+      const relativePath = cleanPath.replace(/^\.?\//, "");
+
+      const fragment = href.includes("#") ? href.slice(href.indexOf("#")) : "";
+
+      link.setAttribute(
+        "href",
+        `#/${encodeURIComponent(project.id)}/${relativePath}${fragment}`,
+      );
+
       return;
     }
 
@@ -609,12 +615,38 @@ function getCurrentRoute() {
   return hash || CONFIG.projects[0].id;
 }
 
-function navigate({ initial = false } = {}) {
+function resolveRoute() {
   const route = getCurrentRoute();
 
-  const project = CONFIG.projects.find((item) => item.id === route);
+  const [projectId, ...pathParts] = route.split("/");
 
-  updateActiveNav(route);
+  const project = CONFIG.projects.find(
+    (item) => item.id === decodeURIComponent(projectId),
+  );
+
+  if (!project) {
+    return {
+      project: null,
+      readme: null,
+    };
+  }
+
+  const readme = pathParts.length
+    ? pathParts.map(decodeURIComponent).join("/")
+    : project.readme;
+
+  return {
+    project,
+    readme,
+  };
+}
+
+function navigate({ initial = false } = {}) {
+  const { project, readme } = resolveRoute();
+
+  const projectRoute = project?.id ?? null;
+
+  updateActiveNav(projectRoute);
 
   if (!project) {
     updatePageLayout(null);
@@ -623,7 +655,10 @@ function navigate({ initial = false } = {}) {
     return;
   }
 
-  loadProject(project, { initial });
+  loadProject(project, {
+    initial,
+    readme,
+  });
 }
 
 function updateActiveNav(route) {
@@ -904,7 +939,10 @@ function initBackToTop() {
  * 15. CARGA DE PROYECTO
  * ============================================================ */
 
-async function loadProject(project, { initial = false } = {}) {
+async function loadProject(
+  project,
+  { initial = false, readme = project.readme } = {},
+) {
   const token = ++navigationToken;
   const previousProjectId = currentProjectId;
 
@@ -930,12 +968,12 @@ async function loadProject(project, { initial = false } = {}) {
   loadProject.currentController = controller;
 
   try {
-    const cacheKey = `readme:${project.id}`;
+    const cacheKey = `readme:${project.id}:${readme}`;
 
     let markdown = getCached(cacheKey);
 
     if (markdown === null) {
-      markdown = await fetchReadme(project, controller.signal);
+      markdown = await fetchReadme(project, readme, controller.signal);
 
       if (token !== navigationToken) {
         return;
