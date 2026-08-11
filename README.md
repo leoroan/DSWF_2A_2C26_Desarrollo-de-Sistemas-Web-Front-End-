@@ -47,9 +47,10 @@ Cada proyecto es una **branch** del repositorio. Para agregar uno:
 
 ---
 
-## Proyectos
+## Índice
 
-Los proyectos de la cursada se irán agregando como branches de este repositorio. Cada branch tendrá su propio `README.md` con la documentación del trabajo.
+- [Inicio](#/inicio)
+- [Sobre este repositorio](#/about_this_repo)
 
 ---
 

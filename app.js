@@ -52,7 +52,7 @@ const CONFIG = {
     name: "Desarrollo de Sistemas Web",
     subtitle: "(Front End)",
     code: "DSWF_2A_2C26",
-    institution: "IFTS N°29",
+    institution: "ISTF N°19",
     student: "Leandro Maselli",
     github: "leoroan",
     intro:
@@ -63,6 +63,12 @@ const CONFIG = {
   // Agregar un proyecto = agregar una entrada aquí.
   projects: [
     { id: "inicio", branch: "main", title: "Inicio", readme: "README.md" },
+    {
+      id: "about_this_repo",
+      branch: "about_this_repo",
+      title: "Sobre este repositorio",
+      readme: "README.md",
+    },
   ],
 
   cache: {
