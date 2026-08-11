@@ -1,12 +1,11 @@
-# DSWF_2A_2C26_Desarrollo-de-Sistemas-Web-Front-End-
+## Bienvenida
 
-Aquí reúno el código, el proceso y las decisiones de cada proyecto. Este es el lugar desde el que voy a compartir mis entregas y, más adelante, publicar mi trabajo.
+¡Bienvenidos a este repositorio! Aquí encontrarás recursos claros y ordenados para apoyar nuestro aprendizaje en desarrollo web front-end.
 
 ---
 
-## Índice
+## Saber más
 
-- [Inicio](#/inicio)
 - [Sobre este repositorio](#/about_this_repo)
 
 ---
