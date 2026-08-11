@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es" data-bs-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Desarrollo de Sistemas Web (Front-end) — Leandro Maselli</title>
+    <meta
+      name="description"
+      content="Repositorio académico de Desarrollo de Sistemas Web (Front End). Código, proceso y decisiones de cada proyecto. IFTS N°29 — Leandro Maselli."
+    />
+
+    <!-- Open Graph básico -->
+    <meta
+      property="og:title"
+      content="Desarrollo de Sistemas Web — Leandro Maselli"
+    />
+    <meta
+      property="og:description"
+      content="Repositorio académico de Desarrollo de Sistemas Web (Front End). IFTS N°29 — Leandro Maselli."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="DSWF_2A_2C26" />
+
+    <!-- Bootstrap 5.3 CSS (SRI) -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+      crossorigin="anonymous"
+    />
+
+    <!-- Bootstrap Icons 1.13.1 (SRI) -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css"
+      integrity="sha384-CK2SzKma4jA5H/MXDUU7i1TqZlCFaD4T01vtyDFvPlD97JQyS+IsSh1nI2EFbpyk"
+      crossorigin="anonymous"
+    />
+
+    <!-- Estilo propio -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <a class="visually-hidden-focusable" href="#contenido"
+      >Saltar al contenido</a
+    >
+
+    <!-- NAVBAR -->
+    <nav
+      class="navbar navbar-expand-md bg-body-tertiary border-bottom"
+      aria-label="Navegación principal"
+    >
+      <div class="container">
+        <a class="navbar-brand fw-semibold" href="/index.html">
+          <span class="text-uppercase letter-spacing"
+            >Desarrollo de Sistemas Web Front-End 2° AÑO, 2° CUATRIMESTRE, AÑO
+            2026</span
+          >
+        </a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-bs-toggle="collapse"
+          data-bs-target="#navPrincipal"
+          aria-controls="navPrincipal"
+          aria-expanded="false"
+          aria-label="Abrir menú de navegación"
+        >
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navPrincipal">
+          <ul class="navbar-nav ms-auto" id="navLinks">
+            <!-- Los ítems de navegación se generan desde CONFIG -->
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <!-- HERO / IDENTIFICACIÓN -->
+    <header class="py-5 border-bottom">
+      <div class="container">
+        <p
+          class="text-uppercase small text-body-secondary mb-2 letter-spacing"
+          id="heroCourse"
+        ></p>
+        <h1 class="display-6 fw-bold mb-1" id="heroTitle"></h1>
+        <p class="lead text-body-secondary mb-3" id="heroSubtitle"></p>
+        <p class="small text-body-secondary mb-4">
+          <span id="heroInstitution"></span>
+          &middot;
+          <span id="heroStudent"></span>
+          &middot;
+          <a
+            href="https://github.com/leoroan"
+            target="_blank"
+            rel="noopener noreferrer"
+            id="heroGithub"
+          >
+            <i class="bi bi-github me-1" aria-hidden="true"></i>
+            @leoroan
+          </a>
+        </p>
+        <p class="mb-0 text-body-secondary" id="heroIntro"></p>
+      </div>
+    </header>
+
+    <!-- CONTENIDO -->
+    <main id="contenido" class="py-5">
+      <div class="container">
+        <article id="documento" class="documento" aria-live="polite">
+          <!-- README renderizado -->
+        </article>
+      </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-body-tertiary border-top py-4">
+      <div
+        class="container d-flex flex-wrap justify-content-between align-items-center gap-2 small text-body-secondary"
+      >
+        <div>DSWF_2A_2C26 &middot; IFTS N°29 &middot; Leandro Maselli</div>
+        <a
+          href="https://github.com/leoroan"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <i class="bi bi-github me-1" aria-hidden="true"></i>
+          GitHub · @leoroan
+        </a>
+      </div>
+    </footer>
+
+    <!-- Bootstrap 5.3 JS Bundle (SRI) -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+      crossorigin="anonymous"
+    ></script>
+
+    <!-- App -->
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

@@ -1,46 +1,13 @@
 /* ============================================================
- * DSWF_2A_2C26 — SPA documental académica
- *
- * Arquitectura interna:
- *   1. CONFIG
- *   2. Estado y cache
- *   3. Utilidades DOM
- *   4. CDN loader (lazy, con SRI)
- *   5. GitHub fetch (raw.githubusercontent.com)
- *   6. Resolución de URLs relativas
- *   7. Renderizado Markdown (marked + DOMPurify)
- *   8. Post-proceso DOM (tablas, alerts, mermaid, highlight)
- *   9. Routing (hash)
- *  10. DOM rendering (hero, nav, documento)
- *  11. Estados de la interfaz
- *  12. Inicialización
- *
- * Decisiones de seguridad:
- *   - Todo el HTML generado por `marked` pasa por `DOMPurify`
- *     antes de insertarse en el DOM. No se inserta HTML desde
- *     GitHub sin sanitización.
- *   - Los recursos relativos del README se resuelven contra
- *     dominios oficiales de GitHub (raw.githubusercontent.com
- *     para imágenes, github.com para enlaces). Nunca se permite
- *     `javascript:` ni esquemas peligrosos.
- *   - Los enlaces externos se abren con rel="noopener noreferrer".
- *
- * Obtención del contenido:
- *   - README: raw.githubusercontent.com (sin rate-limit, simple,
- *     estable para repositorios públicos).
- *   - Validación de branch: GitHub API, únicamente cuando el
- *     README no se encuentra, para diferenciar "branch inexistente"
- *     de "branch existente sin README.md".
- *   El GFM se interpreta localmente con `marked` + DOMPurify,
- *   lo que da control total sobre la presentación y permite
- *   lazy-loading de Mermaid y highlight.js.
+ * DSWF_2A_2C26 — SPA documental académica + Portfolio
  * ============================================================ */
 
-"use strict";
+("use strict");
 
 /* ============================================================
  * 1. CONFIG
  * ============================================================ */
+
 const CONFIG = {
   github: {
     owner: "leoroan",
@@ -52,165 +19,207 @@ const CONFIG = {
     name: "Desarrollo de Sistemas Web",
     subtitle: "(Front End)",
     code: "DSWF_2A_2C26",
-    institution: "ISTF N°19",
+    institution: "IFTS N°29",
     student: "Leandro Maselli",
     github: "leoroan",
     intro:
       "GitHub como base de trabajo: aquí reúno el código, el proceso y las decisiones de cada proyecto. Este es el lugar desde el que voy a compartir mis entregas y, más adelante, publicar mi trabajo.",
   },
 
-  // Los proyectos son branches del repositorio.
-  // Agregar un proyecto = agregar una entrada aquí.
   projects: [
-    { id: "inicio", branch: "main", title: "Inicio", readme: "README.md" },
     {
-      id: "about_this_repo",
-      branch: "about_this_repo",
-      title: "Sobre este repositorio",
+      id: "inicio",
+      branch: "main",
+      title: "Inicio",
       readme: "README.md",
+    },
+    {
+      id: "about-this-repo",
+      branch: "about_this_repo",
+      title: "About this repo",
+      description: "Información y documentación sobre este repositorio.",
     },
   ],
 
   cache: {
-    // TTL corto: evita requests innecesarios pero no impide ver
-    // rápidamente una actualización reciente del README.
-    ttlMs: 60_000, // 1 minuto
+    ttlMs: 60_000,
   },
 };
 
 /* ============================================================
- * 2. Estado y cache
+ * 2. ESTADO Y CACHE
  * ============================================================ */
+
 const cache = new Map();
 
-// Protección contra condiciones de carrera de navegación:
-//  - `navigationToken` identifica la carga actual. Un resultado
-//    de una carga anterior se descarta si el token cambió.
-//  - `activeController` cancela el fetch en curso cuando el
-//    usuario navega a otro proyecto.
 let navigationToken = 0;
-let activeController = null;
-
-function isCurrentNavigation(token) {
-  return token === navigationToken;
-}
+let currentProjectId = null;
 
 function getCached(key) {
   const entry = cache.get(key);
-  if (!entry) return null;
+
+  if (!entry) {
+    return null;
+  }
+
   if (Date.now() - entry.timestamp > CONFIG.cache.ttlMs) {
     cache.delete(key);
     return null;
   }
+
   return entry.value;
 }
 
 function setCached(key, value) {
-  cache.set(key, { value, timestamp: Date.now() });
+  cache.set(key, {
+    value,
+    timestamp: Date.now(),
+  });
 }
 
 /* ============================================================
- * 3. Utilidades DOM
+ * 3. UTILIDADES DOM
  * ============================================================ */
+
 const $ = (id) => document.getElementById(id);
 
 /* ============================================================
- * 4. CDN loader (lazy, con SRI)
- *
- * Estas librerías no se cargan en index.html: se descargan bajo
- * demanda. Bootstrap es la única dependencia de arranque.
+ * 4. CARGA DE LIBRERÍAS CDN
  * ============================================================ */
+
 const CDN_LIBS = {
   marked: {
     url: "https://cdn.jsdelivr.net/npm/marked@15.0.6/marked.min.js",
     integrity:
       "sha384-b5hg04N6F0rvyz1a/GVoPPY0JcqGTARCmEuFCqwQKX3zq7LsxhV+n+6Ykh2pQOCH",
   },
+
   dompurify: {
     url: "https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js",
     integrity:
       "sha384-eEu5CTj3qGvu9PdJuS+YlkNi7d2XxQROAFYOr59zgObtlcux1ae1Il3u7jvdCSWu",
   },
+
   highlight: {
     url: "https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/highlight.min.js",
     integrity:
       "sha384-RH2xi4eIQ/gjtbs9fUXM68sLSi99C7ZWBRX1vDrVv6GQXRibxXLbwO2NGZB74MbU",
   },
+
   highlightCss: {
     url: "https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.11.1/styles/github.min.css",
     integrity:
       "sha384-eFTL69TLRZTkNfYZOLM+G04821K1qZao/4QLJbet1pP4tcF+fdXq/9CdqAbWRl/L",
   },
+
   mermaid: {
     url: "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js",
     integrity:
       "sha384-rbtjAdnIQE/aQJGEgXrVUlMibdfTSa4PQju4HDhN3sR2PmaKFzhEafuePsl9H/9I",
   },
-  markedFootnote: {
-    url: "https://cdn.jsdelivr.net/npm/marked-footnote@1.4.0/dist/index.umd.js",
-    integrity:
-      "sha384-sHC+QyIpvHS4DSRd70Nup3IflHD1acxfrItwZcKrMjpWo4SXfiGB7G7xTjMObOXD",
-  },
 };
 
 function loadScript(lib, globalName) {
   return new Promise((resolve, reject) => {
-    if (window[globalName]) return resolve(window[globalName]);
+    if (window[globalName]) {
+      resolve(window[globalName]);
+      return;
+    }
+
+    const existing = document.querySelector(`script[src="${lib.url}"]`);
+
+    if (existing) {
+      existing.addEventListener("load", () => {
+        resolve(window[globalName]);
+      });
+
+      existing.addEventListener("error", () => {
+        reject(new Error(`No fue posible cargar ${globalName}`));
+      });
+
+      return;
+    }
+
     const script = document.createElement("script");
+
     script.src = lib.url;
     script.integrity = lib.integrity;
     script.crossOrigin = "anonymous";
-    script.addEventListener("load", () => resolve(window[globalName]));
-    script.addEventListener("error", () =>
-      reject(new Error(`No fue posible cargar ${globalName}`)),
-    );
+
+    script.addEventListener("load", () => {
+      resolve(window[globalName]);
+    });
+
+    script.addEventListener("error", () => {
+      reject(new Error(`No fue posible cargar ${globalName}`));
+    });
+
     document.head.appendChild(script);
   });
 }
 
 function loadStylesheet(lib) {
   return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`link[href="${lib.url}"]`);
+
+    if (existing) {
+      resolve();
+      return;
+    }
+
     const link = document.createElement("link");
+
     link.rel = "stylesheet";
     link.href = lib.url;
     link.integrity = lib.integrity;
     link.crossOrigin = "anonymous";
+
     link.addEventListener("load", resolve);
-    link.addEventListener("error", () =>
-      reject(new Error("No fue posible cargar los estilos")),
-    );
+
+    link.addEventListener("error", () => {
+      reject(new Error("No fue posible cargar los estilos"));
+    });
+
     document.head.appendChild(link);
   });
 }
 
 /* ============================================================
- * 5. GitHub fetch
- *
- * El README se obtiene desde raw.githubusercontent.com usando
- * la branch del proyecto como contexto.
+ * 5. GITHUB
  * ============================================================ */
+
 function getRawReadmeUrl(project) {
-  return `https://raw.githubusercontent.com/${CONFIG.github.owner}/${CONFIG.github.repository}/${project.branch}/${project.readme}`;
+  return new URL(
+    `${project.branch}/${project.readme}`,
+    `https://raw.githubusercontent.com/${CONFIG.github.owner}/${CONFIG.github.repository}/`,
+  ).href;
 }
 
 function getApiBranchUrl(branch) {
   return `https://api.github.com/repos/${CONFIG.github.owner}/${CONFIG.github.repository}/branches/${encodeURIComponent(branch)}`;
 }
 
-async function branchExists(branch, signal) {
+async function branchExists(branch) {
   const cached = getCached(`branch:${branch}`);
-  if (cached !== null) return cached;
+
+  if (cached !== null) {
+    return cached;
+  }
 
   try {
     const response = await fetch(getApiBranchUrl(branch), {
-      headers: { Accept: "application/vnd.github+json" },
-      signal,
+      headers: {
+        Accept: "application/vnd.github+json",
+      },
     });
+
     const exists = response.ok;
+
     setCached(`branch:${branch}`, exists);
+
     return exists;
   } catch {
-    return null; // no se pudo verificar
+    return null;
   }
 }
 
@@ -221,13 +230,21 @@ function createFetchError(code) {
 }
 
 async function fetchReadme(project, signal) {
-  const response = await fetch(getRawReadmeUrl(project), { signal });
+  const response = await fetch(getRawReadmeUrl(project), {
+    signal,
+  });
 
-  if (response.ok) return response.text();
+  if (response.ok) {
+    return response.text();
+  }
 
   if (response.status === 404) {
-    const exists = await branchExists(project.branch, signal);
-    if (exists === false) throw createFetchError("BRANCH_NOT_FOUND");
+    const exists = await branchExists(project.branch);
+
+    if (exists === false) {
+      throw createFetchError("BRANCH_NOT_FOUND");
+    }
+
     throw createFetchError("README_NOT_FOUND");
   }
 
@@ -235,39 +252,17 @@ async function fetchReadme(project, signal) {
 }
 
 /* ============================================================
- * 6. Resolución de URLs relativas
- *
- * Un README puede contener:
- *   ![Imagen](./assets/example.png)
- *   [Doc](./docs/documentacion.md)
- *   [Volver](../README.md)
- *
- * Estos recursos se resuelven contra la branch correspondiente
- * del repositorio, tomando como base el directorio del README.
- * Los enlaces externos se mantienen intactos.
- *
- * Política de seguridad:
- *   - `data:` solo se conserva en imágenes (data:image/...).
- *   - En enlaces, `data:` se descarta (no es un enlace legítimo).
- *   - DOMPurify sigue siendo la última barrera de sanitización.
+ * 6. RESOLUCIÓN DE URLS RELATIVAS
  * ============================================================ */
+
 function isExternalUrl(url) {
   return /^(https?:|mailto:|tel:|#|\/\/)/i.test(url);
 }
 
-function isSafeDataImage(url) {
-  return /^data:image\//i.test(url);
-}
-
-function getReadmeDir(readmePath) {
-  const idx = readmePath.lastIndexOf("/");
-  return idx === -1 ? "" : readmePath.slice(0, idx + 1);
-}
-
 function resolveRelativeUrl(url, baseUrl) {
-  if (!url) return url;
-  if (isExternalUrl(url)) return url;
-  if (isSafeDataImage(url)) return url;
+  if (!url || isExternalUrl(url)) {
+    return url;
+  }
 
   try {
     return new URL(url, baseUrl).href;
@@ -277,13 +272,30 @@ function resolveRelativeUrl(url, baseUrl) {
 }
 
 function applyResourceUrls(container, project) {
-  const readmeDir = getReadmeDir(project.readme);
-  const rawBase = `https://raw.githubusercontent.com/${CONFIG.github.owner}/${CONFIG.github.repository}/${project.branch}/${readmeDir}`;
-  const fileBase = `https://github.com/${CONFIG.github.owner}/${CONFIG.github.repository}/blob/${project.branch}/${readmeDir}`;
+  const rawBase =
+    `https://raw.githubusercontent.com/` +
+    `${CONFIG.github.owner}/` +
+    `${CONFIG.github.repository}/` +
+    `${project.branch}/`;
+
+  const fileBase =
+    `https://github.com/` +
+    `${CONFIG.github.owner}/` +
+    `${CONFIG.github.repository}/blob/` +
+    `${project.branch}/`;
 
   container.querySelectorAll("img[src]").forEach((img) => {
     const src = img.getAttribute("src");
-    if (!src) return;
+
+    if (!src) {
+      return;
+    }
+
+    if (/^data:/i.test(src) && !/^data:image\//i.test(src)) {
+      img.removeAttribute("src");
+      return;
+    }
+
     img.setAttribute("src", resolveRelativeUrl(src, rawBase));
     img.setAttribute("loading", "lazy");
     img.setAttribute("decoding", "async");
@@ -292,70 +304,88 @@ function applyResourceUrls(container, project) {
 
   container.querySelectorAll("a[href]").forEach((link) => {
     const href = link.getAttribute("href");
-    if (!href) return;
+
+    if (!href) {
+      return;
+    }
+
+    if (/^data:/i.test(href)) {
+      link.removeAttribute("href");
+      return;
+    }
+
     link.setAttribute("href", resolveRelativeUrl(href, fileBase));
   });
 }
 
 /* ============================================================
- * 7. Renderizado Markdown (marked + DOMPurify)
+ * 7. MARKDOWN
  * ============================================================ */
-async function renderMarkdown(markdown, project, token) {
+
+async function renderMarkdown(markdown, project) {
   await Promise.all([
     loadScript(CDN_LIBS.marked, "marked"),
     loadScript(CDN_LIBS.dompurify, "DOMPurify"),
-    loadScript(CDN_LIBS.markedFootnote, "markedFootnote"),
   ]);
 
-  // Si el usuario navegó a otro proyecto mientras se cargaban las
-  // librerías, se descarta este renderizado.
-  if (!isCurrentNavigation(token)) return;
-
-  window.marked.use({ gfm: true, breaks: false, async: false });
-  window.marked.use(window.markedFootnote());
+  window.marked.use({
+    gfm: true,
+    breaks: false,
+    async: false,
+  });
 
   const rawHtml = window.marked.parse(markdown);
 
-  // Sanitización obligatoria antes de insertar HTML en el DOM.
-  // `input` se permite únicamente como checkbox de task lists GFM
-  // (typeof checkbox + checked + disabled); cualquier otro input
-  // es eliminado.
   const cleanHtml = window.DOMPurify.sanitize(rawHtml, {
-    USE_PROFILES: { html: true },
+    USE_PROFILES: {
+      html: true,
+    },
+
+    ADD_ATTR: ["target", "rel", "loading", "decoding"],
+
     FORBID_TAGS: ["style", "form", "button", "iframe", "object", "embed"],
-    ADD_ATTR: ["type", "checked", "disabled"],
-    ALLOW_DATA_ATTR: true,
+
+    FORBID_ATTR: ["onerror", "onclick", "onload", "onmouseover"],
   });
 
   const container = $("documento");
+
+  if (!container) {
+    throw new Error("No se encontró el contenedor #documento");
+  }
+
   container.innerHTML = cleanHtml;
 
-  await postProcess(container, project, token);
+  container.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+    input.disabled = true;
+    input.setAttribute("aria-hidden", "true");
+  });
+
+  container
+    .querySelectorAll("input:not([type='checkbox'])")
+    .forEach((input) => input.remove());
+
+  await postProcess(container, project);
 }
 
 /* ============================================================
- * 8. Post-proceso DOM
- *
- * El HTML ya está sanitizado; aquí se aplican mejoras de
- * presentación y funcionalidad sin tocar la fuente Markdown.
+ * 8. POST-PROCESAMIENTO
  * ============================================================ */
-async function postProcess(container, project, token) {
-  if (!isCurrentNavigation(token)) return;
 
+async function postProcess(container, project) {
   applyResourceUrls(container, project);
   applyExternalLinkBehavior(container);
   wrapTables(container);
   applyGithubAlerts(container);
 
-  await initMermaid(container, token);
-  if (!isCurrentNavigation(token)) return;
-
-  await highlightCode(container, token);
+  await initMermaid(container);
+  await highlightCode(container);
 }
 
 function applyExternalLinkBehavior(container) {
   container.querySelectorAll("a[href]").forEach((link) => {
     const href = link.getAttribute("href") || "";
+
     if (/^https?:\/\//i.test(href) || href.startsWith("//")) {
       link.setAttribute("target", "_blank");
       link.setAttribute("rel", "noopener noreferrer");
@@ -365,20 +395,25 @@ function applyExternalLinkBehavior(container) {
 
 function wrapTables(container) {
   container.querySelectorAll("table").forEach((table) => {
-    if (table.closest(".table-responsive")) return;
+    if (table.closest(".table-responsive")) {
+      return;
+    }
+
     const wrapper = document.createElement("div");
+
     wrapper.className = "table-responsive";
+
     table.parentNode.insertBefore(wrapper, table);
     wrapper.appendChild(table);
+
+    table.classList.add("table", "table-bordered", "align-middle");
   });
 }
 
-/* ---------- GitHub Alerts ----------
- * Formato GFM:  > [!NOTE] / [!TIP] / [!IMPORTANT] / [!WARNING] / [!CAUTION]
- * `marked` los renderiza como blockquote con el marcador como texto
- * plano al inicio del párrafo (o como <strong> si el autor usó negrita).
- * Se detectan ambos formatos y se les aplica la presentación de Bootstrap.
- */
+/* ============================================================
+ * 9. GITHUB ALERTS
+ * ============================================================ */
+
 const ALERT_LABELS = {
   NOTE: "Nota",
   TIP: "Consejo",
@@ -398,74 +433,90 @@ const ALERT_CLASSES = {
 function applyGithubAlerts(container) {
   container.querySelectorAll("blockquote").forEach((blockquote) => {
     const firstParagraph = blockquote.querySelector(":scope > p");
-    if (!firstParagraph) return;
 
-    // Formato 1: el autor usó negrita:  > **[!NOTE]** ...
+    if (!firstParagraph) {
+      return;
+    }
+
     const strong = firstParagraph.querySelector("strong");
+
     if (strong) {
       const match = strong.textContent
         .trim()
         .match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]$/);
+
       if (match) {
         strong.textContent = ALERT_LABELS[match[1]];
+
         blockquote.classList.add(
           "alert",
           ALERT_CLASSES[match[1]],
           "dswf-github-alert",
         );
+
         return;
       }
     }
 
-    // Formato 2: marked lo deja como texto plano al inicio del párrafo:
-    //   <p>[!NOTE]\nInformación adicional.</p>
     const firstNode = firstParagraph.firstChild;
-    if (firstNode && firstNode.nodeType === Node.TEXT_NODE) {
-      const match = firstNode.textContent.match(
-        /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n?\s*/,
-      );
-      if (match) {
-        const label = document.createElement("strong");
-        label.textContent = ALERT_LABELS[match[1]];
 
-        firstParagraph.insertBefore(label, firstNode);
-
-        const rest = firstNode.textContent.slice(match[0].length);
-        if (rest) {
-          firstNode.textContent = " " + rest.replace(/^\s+/, "");
-        } else {
-          firstNode.remove();
-        }
-
-        blockquote.classList.add(
-          "alert",
-          ALERT_CLASSES[match[1]],
-          "dswf-github-alert",
-        );
-      }
+    if (!firstNode || firstNode.nodeType !== Node.TEXT_NODE) {
+      return;
     }
+
+    const match = firstNode.textContent.match(
+      /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n?\s*/,
+    );
+
+    if (!match) {
+      return;
+    }
+
+    const label = document.createElement("strong");
+
+    label.textContent = ALERT_LABELS[match[1]];
+
+    firstParagraph.insertBefore(label, firstNode);
+
+    const rest = firstNode.textContent.slice(match[0].length);
+
+    if (rest) {
+      firstNode.textContent = ` ${rest.replace(/^\s+/, "")}`;
+    } else {
+      firstNode.remove();
+    }
+
+    blockquote.classList.add(
+      "alert",
+      ALERT_CLASSES[match[1]],
+      "dswf-github-alert",
+    );
   });
 }
 
-/* ---------- Mermaid (lazy) ----------
- * Mermaid solo se descarga si el documento contiene bloques
- * ```mermaid. Prioridad: funcionalidad > peso de descarga.
- */
-async function initMermaid(container, token) {
+/* ============================================================
+ * 10. MERMAID
+ * ============================================================ */
+
+async function initMermaid(container) {
   const mermaidBlocks = container.querySelectorAll(
     "pre > code.language-mermaid",
   );
-  if (mermaidBlocks.length === 0) return;
+
+  if (mermaidBlocks.length === 0) {
+    return;
+  }
 
   await loadScript(CDN_LIBS.mermaid, "mermaid");
-  if (!isCurrentNavigation(token)) return;
 
   mermaidBlocks.forEach((codeBlock) => {
     const pre = codeBlock.parentElement;
-    const mermaidPre = document.createElement("pre");
-    mermaidPre.className = "mermaid";
-    mermaidPre.textContent = codeBlock.textContent;
-    pre.replaceWith(mermaidPre);
+    const mermaidElement = document.createElement("pre");
+
+    mermaidElement.className = "mermaid";
+    mermaidElement.textContent = codeBlock.textContent;
+
+    pre.replaceWith(mermaidElement);
   });
 
   window.mermaid.initialize({
@@ -475,22 +526,29 @@ async function initMermaid(container, token) {
   });
 
   try {
-    await window.mermaid.run({ nodes: container.querySelectorAll(".mermaid") });
+    await window.mermaid.run({
+      nodes: container.querySelectorAll(".mermaid"),
+    });
   } catch {
-    // Un diagrama inválido no debe romper el resto del documento.
+    // Un diagrama inválido no debe romper el resto del README.
   }
 }
 
-/* ---------- Syntax highlighting (lazy) ---------- */
-async function highlightCode(container, token) {
+/* ============================================================
+ * 11. SYNTAX HIGHLIGHTING
+ * ============================================================ */
+
+async function highlightCode(container) {
   const codeBlocks = container.querySelectorAll("pre code");
-  if (codeBlocks.length === 0) return;
+
+  if (codeBlocks.length === 0) {
+    return;
+  }
 
   await Promise.all([
     loadScript(CDN_LIBS.highlight, "hljs"),
     loadStylesheet(CDN_LIBS.highlightCss),
   ]);
-  if (!isCurrentNavigation(token)) return;
 
   codeBlocks.forEach((element) => {
     try {
@@ -502,34 +560,39 @@ async function highlightCode(container, token) {
 }
 
 /* ============================================================
- * 9. Routing (hash)
- *
- * Hash routing:  #/inicio  #/proyecto-01
- * No requiere configuraciones de rewrite en GitHub Pages/Vercel.
+ * 12. ROUTING
  * ============================================================ */
+
 function getCurrentRoute() {
   const hash = location.hash.replace(/^#\/?/, "").trim();
+
   return hash || CONFIG.projects[0].id;
 }
 
-function navigate() {
+function navigate({ initial = false } = {}) {
   const route = getCurrentRoute();
-  const project = CONFIG.projects.find((p) => p.id === route);
+
+  const project = CONFIG.projects.find((item) => item.id === route);
 
   updateActiveNav(route);
 
   if (!project) {
+    updatePageLayout(null);
     renderProjectNotFound();
+    focusDocumentation();
     return;
   }
 
-  loadProject(project);
+  loadProject(project, { initial });
 }
 
 function updateActiveNav(route) {
   document.querySelectorAll("#navLinks .nav-link").forEach((link) => {
-    const isActive = link.getAttribute("href") === `#/${route}`;
+    const href = link.getAttribute("href");
+    const isActive = href === `#/${route}`;
+
     link.classList.toggle("active", isActive);
+
     if (isActive) {
       link.setAttribute("aria-current", "page");
     } else {
@@ -537,8 +600,8 @@ function updateActiveNav(route) {
     }
   });
 
-  // Cerrar el menú colapsado en móviles tras navegar.
   const navCollapse = document.getElementById("navPrincipal");
+
   if (
     navCollapse &&
     navCollapse.classList.contains("show") &&
@@ -549,51 +612,123 @@ function updateActiveNav(route) {
 }
 
 /* ============================================================
- * 10. DOM rendering (hero, nav, documento)
+ * 13. PORTFOLIO Y NAVEGACIÓN
  * ============================================================ */
-const NAV_ICONS = {
-  inicio: "bi-house",
-};
 
-function getProjectIcon(project) {
-  return NAV_ICONS[project.id] || "bi-folder2-open";
+function isHomeProject(project) {
+  return project?.id === CONFIG.projects[0]?.id;
 }
 
-function renderIdentidad() {
-  const { course } = CONFIG;
+function updatePageLayout(project) {
+  const portfolio = $("portfolio");
+  const documentation = $("documentacion");
 
-  $("heroCourse").textContent = `${course.code} · ${course.institution}`;
-  $("heroTitle").textContent = course.name;
-  $("heroSubtitle").textContent = course.subtitle;
-  $("heroInstitution").textContent = course.institution;
-  $("heroStudent").textContent = course.student;
+  if (!portfolio || !documentation) {
+    return;
+  }
 
-  const githubLink = $("heroGithub");
-  githubLink.href = `https://github.com/${course.github}`;
+  const isHome = isHomeProject(project);
 
-  // Conserva el icono <i> existente en el HTML y actualiza el texto.
-  const icon = githubLink.querySelector("i.bi");
-  githubLink.textContent = "";
-  if (icon) githubLink.appendChild(icon);
-  githubLink.appendChild(document.createTextNode(`@${course.github}`));
+  portfolio.hidden = !isHome;
+  documentation.hidden = false;
+}
 
-  $("heroIntro").textContent = course.intro;
+function focusDocumentation() {
+  const documentation = $("documentacion");
+
+  if (!documentation) {
+    return;
+  }
+
+  documentation.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+}
+
+function renderPortfolioProjects() {
+  const container = $("portfolioProjects");
+
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = "";
+
+  const projects = CONFIG.projects.filter((project) => !isHomeProject(project));
+
+  if (projects.length === 0) {
+    const empty = document.createElement("p");
+
+    empty.className = "small text-body-secondary mb-0";
+    empty.textContent =
+      "Los proyectos de la cursada aparecerán aquí a medida que se incorporen sus branches.";
+
+    container.appendChild(empty);
+
+    return;
+  }
+
+  projects.forEach((project) => {
+    const column = document.createElement("div");
+
+    column.className = "col-sm-6";
+
+    const card = document.createElement("a");
+
+    card.href = `#/${encodeURIComponent(project.id)}`;
+    card.className =
+      "d-block h-100 text-decoration-none border rounded-3 p-3 bg-body";
+
+    const icon = document.createElement("i");
+
+    icon.className = "bi bi-folder2-open fs-4 d-block mb-3";
+    icon.setAttribute("aria-hidden", "true");
+
+    const title = document.createElement("h3");
+
+    title.className = "h6 text-body mb-1";
+    title.textContent = project.title;
+
+    const description = document.createElement("p");
+
+    description.className = "small text-body-secondary mb-0";
+    description.textContent = `Branch: ${project.branch}`;
+
+    card.appendChild(icon);
+    card.appendChild(title);
+    card.appendChild(description);
+
+    column.appendChild(card);
+    container.appendChild(column);
+  });
 }
 
 function renderNav() {
   const navLinks = $("navLinks");
+
+  if (!navLinks) {
+    return;
+  }
+
   navLinks.innerHTML = "";
 
   CONFIG.projects.forEach((project) => {
     const item = document.createElement("li");
+
     item.className = "nav-item";
 
     const link = document.createElement("a");
+
     link.className = "nav-link";
     link.href = `#/${encodeURIComponent(project.id)}`;
 
     const icon = document.createElement("i");
-    icon.className = `bi ${getProjectIcon(project)} me-1`;
+
+    icon.className = isHomeProject(project)
+      ? "bi bi-house me-1"
+      : "bi bi-folder2-open me-1";
+
     icon.setAttribute("aria-hidden", "true");
 
     link.appendChild(icon);
@@ -605,38 +740,90 @@ function renderNav() {
 }
 
 /* ============================================================
- * 11. Estados de la interfaz
+ * 14. ESTADOS DE INTERFAZ
  * ============================================================ */
+
 function renderLoading() {
-  $("documento").innerHTML = `
-    <div class="d-flex align-items-center gap-2 text-body-secondary" role="status">
-      <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+  const container = $("documento");
+
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = `
+    <div
+      class="d-flex align-items-center gap-2 text-body-secondary"
+      role="status"
+    >
+      <span
+        class="spinner-border spinner-border-sm"
+        aria-hidden="true"
+      ></span>
+
       <span>Cargando documentación…</span>
-    </div>`;
+    </div>
+  `;
 }
 
 function renderProjectNotFound() {
-  $("documento").innerHTML = `
-    <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
-      <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
-      <p class="mb-0">No se encontró el proyecto solicitado.</p>
-    </div>`;
+  const container = $("documento");
+
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="alert alert-warning" role="alert">
+      <i
+        class="bi bi-exclamation-triangle me-2"
+        aria-hidden="true"
+      ></i>
+
+      <span>No se encontró el proyecto solicitado.</span>
+    </div>
+  `;
 }
 
 function renderReadmeNotFound() {
-  $("documento").innerHTML = `
-    <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
-      <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
-      <p class="mb-0">El branch existe pero no contiene README.md.</p>
-    </div>`;
+  const container = $("documento");
+
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="alert alert-warning" role="alert">
+      <i
+        class="bi bi-file-earmark-text me-2"
+        aria-hidden="true"
+      ></i>
+
+      <span>
+        El branch existe pero no contiene README.md.
+      </span>
+    </div>
+  `;
 }
 
 function renderLoadingError() {
-  $("documento").innerHTML = `
-    <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
-      <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
-      <p class="mb-0">No fue posible cargar la documentación.</p>
-    </div>`;
+  const container = $("documento");
+
+  if (!container) {
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="alert alert-danger" role="alert">
+      <i
+        class="bi bi-exclamation-circle me-2"
+        aria-hidden="true"
+      ></i>
+
+      <span>
+        No fue posible cargar la documentación.
+      </span>
+    </div>
+  `;
 }
 
 function showError(error) {
@@ -644,73 +831,127 @@ function showError(error) {
     case "BRANCH_NOT_FOUND":
       renderProjectNotFound();
       break;
+
     case "README_NOT_FOUND":
       renderReadmeNotFound();
       break;
+
     default:
       renderLoadingError();
   }
 }
 
 /* ============================================================
- * Carga de un proyecto (branch del repositorio)
+ * 15. CARGA DE PROYECTO
  * ============================================================ */
-async function loadProject(project) {
+
+async function loadProject(project, { initial = false } = {}) {
   const token = ++navigationToken;
+  const previousProjectId = currentProjectId;
 
-  // Cancela la carga anterior si todavía está en curso.
-  if (activeController) activeController.abort();
-  const controller = new AbortController();
-  activeController = controller;
+  currentProjectId = project.id;
 
-  document.title =
-    project.id === CONFIG.projects[0].id
-      ? `${CONFIG.course.name} — ${CONFIG.course.student}`
-      : `${CONFIG.course.name} — ${project.title}`;
+  const isHome = isHomeProject(project);
+
+  updatePageLayout(project);
+
+  document.title = isHome
+    ? `${CONFIG.course.name} — ${CONFIG.course.student}`
+    : `${CONFIG.course.name} — ${project.title}`;
 
   renderLoading();
 
+  const controller = new AbortController();
+  const previousController = loadProject.currentController;
+
+  if (previousController) {
+    previousController.abort();
+  }
+
+  loadProject.currentController = controller;
+
   try {
     const cacheKey = `readme:${project.id}`;
+
     let markdown = getCached(cacheKey);
 
     if (markdown === null) {
       markdown = await fetchReadme(project, controller.signal);
+
+      if (token !== navigationToken) {
+        return;
+      }
+
       setCached(cacheKey, markdown);
     }
 
-    await renderMarkdown(markdown, project, token);
+    if (token !== navigationToken) {
+      return;
+    }
+
+    await renderMarkdown(markdown, project);
+
+    if (token !== navigationToken) {
+      return;
+    }
+
+    if (isHome) {
+      if (initial || previousProjectId !== project.id) {
+        window.scrollTo({
+          top: 0,
+          behavior: initial ? "auto" : "smooth",
+        });
+      }
+    } else if (previousProjectId !== project.id) {
+      focusDocumentation();
+    }
   } catch (error) {
-    // Navegación cancelada: no mostrar errores de la carga descartada.
-    if (error.name === "AbortError") return;
-    if (!isCurrentNavigation(token)) return;
+    if (error.name === "AbortError") {
+      return;
+    }
+
+    if (token !== navigationToken) {
+      return;
+    }
+
     showError(error);
-  } finally {
-    if (activeController === controller) activeController = null;
   }
 }
 
 /* ============================================================
- * 12. Inicialización
+ * 16. GITHUB PAGES
  * ============================================================ */
-function init() {
-  // En GitHub Pages (project site) el nombre del repositorio puede
-  // deducirse del path: https://OWNER.github.io/REPOSITORIO/
+
+function detectGithubPagesRepository() {
   if (
-    window.location.protocol === "https:" &&
-    /\.github\.io$/i.test(window.location.hostname)
+    window.location.protocol !== "https:" ||
+    !/\.github\.io$/i.test(window.location.hostname)
   ) {
-    const pathMatch = window.location.pathname.match(/^\/([^/]+)\/?$/i);
-    if (pathMatch && pathMatch[1] && !pathMatch[1].includes(":")) {
-      CONFIG.github.repository = decodeURIComponent(pathMatch[1]);
-    }
+    return;
   }
 
-  renderIdentidad();
-  renderNav();
+  const pathMatch = window.location.pathname.match(/^\/([^/]+)\/?$/i);
 
-  window.addEventListener("hashchange", navigate);
-  navigate();
+  if (pathMatch && pathMatch[1] && !pathMatch[1].includes(":")) {
+    CONFIG.github.repository = decodeURIComponent(pathMatch[1]);
+  }
+}
+
+/* ============================================================
+ * 17. INICIALIZACIÓN
+ * ============================================================ */
+
+function init() {
+  detectGithubPagesRepository();
+
+  renderNav();
+  renderPortfolioProjects();
+
+  window.addEventListener("hashchange", () => {
+    navigate({ initial: false });
+  });
+
+  navigate({ initial: true });
 }
 
 init();
