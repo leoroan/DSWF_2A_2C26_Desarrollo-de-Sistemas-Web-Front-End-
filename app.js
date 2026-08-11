@@ -38,6 +38,15 @@ const CONFIG = {
       branch: "about_this_repo",
       title: "About this repo",
       description: "Información y documentación sobre este repositorio.",
+      readme: "README.md",
+    },
+    {
+      id: "sobre-mi",
+      repository: "leoroan/leoroan",
+      branch: "main",
+      title: "Sobre mí",
+      description: "Información sobre mi perfil profesional en GitHub.",
+      readme: "README.md",
     },
   ],
 
@@ -188,26 +197,42 @@ function loadStylesheet(lib) {
  * 5. GITHUB
  * ============================================================ */
 
+function getProjectRepository(project) {
+  return (
+    project.repository || `${CONFIG.github.owner}/${CONFIG.github.repository}`
+  );
+}
+
 function getRawReadmeUrl(project) {
+  const repository = getProjectRepository(project);
+
   return new URL(
     `${project.branch}/${project.readme}`,
-    `https://raw.githubusercontent.com/${CONFIG.github.owner}/${CONFIG.github.repository}/`,
+    `https://raw.githubusercontent.com/${repository}/`,
   ).href;
 }
 
-function getApiBranchUrl(branch) {
-  return `https://api.github.com/repos/${CONFIG.github.owner}/${CONFIG.github.repository}/branches/${encodeURIComponent(branch)}`;
+function getApiBranchUrl(project) {
+  const repository = getProjectRepository(project);
+
+  return `https://api.github.com/repos/${repository}/branches/${encodeURIComponent(
+    project.branch,
+  )}`;
 }
 
-async function branchExists(branch) {
-  const cached = getCached(`branch:${branch}`);
+async function branchExists(project) {
+  const repository = getProjectRepository(project);
+
+  const cacheKey = `branch:${repository}:${project.branch}`;
+
+  const cached = getCached(cacheKey);
 
   if (cached !== null) {
     return cached;
   }
 
   try {
-    const response = await fetch(getApiBranchUrl(branch), {
+    const response = await fetch(getApiBranchUrl(project), {
       headers: {
         Accept: "application/vnd.github+json",
       },
@@ -215,7 +240,7 @@ async function branchExists(branch) {
 
     const exists = response.ok;
 
-    setCached(`branch:${branch}`, exists);
+    setCached(cacheKey, exists);
 
     return exists;
   } catch {
@@ -239,7 +264,7 @@ async function fetchReadme(project, signal) {
   }
 
   if (response.status === 404) {
-    const exists = await branchExists(project.branch);
+    const exists = await branchExists(project);
 
     if (exists === false) {
       throw createFetchError("BRANCH_NOT_FOUND");
@@ -272,17 +297,13 @@ function resolveRelativeUrl(url, baseUrl) {
 }
 
 function applyResourceUrls(container, project) {
+  const repository = getProjectRepository(project);
+
   const rawBase =
-    `https://raw.githubusercontent.com/` +
-    `${CONFIG.github.owner}/` +
-    `${CONFIG.github.repository}/` +
-    `${project.branch}/`;
+    `https://raw.githubusercontent.com/${repository}/` + `${project.branch}/`;
 
   const fileBase =
-    `https://github.com/` +
-    `${CONFIG.github.owner}/` +
-    `${CONFIG.github.repository}/blob/` +
-    `${project.branch}/`;
+    `https://github.com/${repository}/blob/` + `${project.branch}/`;
 
   container.querySelectorAll("img[src]").forEach((img) => {
     const src = img.getAttribute("src");
