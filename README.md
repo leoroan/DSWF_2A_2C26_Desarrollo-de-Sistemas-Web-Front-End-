@@ -15,7 +15,7 @@ La propuesta busca combinar los requisitos técnicos de la consigna con una pres
 La aplicación se encuentra disponible en:
 
 - **Vercel:**
-  https://dswf-2-a-2-c26-desarrollo-de-sistemas-web-front-jmhrottke.vercel.app/
+  https://dswf-2-a-2-c26-desarrollo-de-sistem.vercel.app/
 
 - **GitHub Pages / dominio personal:**
   https://myselfproductions.me/DSWF_2A_2C26_Desarrollo-de-Sistemas-Web-Front-End-/
