@@ -36,7 +36,7 @@ const CONFIG = {
     {
       id: "about-this-repo",
       branch: "about_this_repo",
-      title: "About this repo",
+      title: "Sobre el repo",
       description: "Información y documentación sobre este repositorio.",
       readme: "README.md",
     },
@@ -867,6 +867,21 @@ function showError(error) {
   }
 }
 
+function initBackToTop() {
+  const button = $("backToTop");
+
+  if (!button) {
+    return;
+  }
+
+  button.addEventListener("click", () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  });
+}
+
 /* ============================================================
  * 15. CARGA DE PROYECTO
  * ============================================================ */
@@ -972,6 +987,8 @@ function init() {
 
   renderNav();
   renderPortfolioProjects();
+
+  initBackToTop();
 
   window.addEventListener("hashchange", () => {
     navigate({ initial: false });

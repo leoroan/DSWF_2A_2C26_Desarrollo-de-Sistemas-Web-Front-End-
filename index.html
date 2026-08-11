@@ -61,7 +61,7 @@
     <link rel="stylesheet" href="./styles/style.css" />
   </head>
 
-  <body>
+  <body id="inicio">
     <!-- =========================================================
          ACCESIBILIDAD
          Permite saltar directamente al contenido principal.
@@ -500,7 +500,7 @@
               Documentación
             </p>
 
-            <h2 id="documentacionTitle" class="h3 mb-0">README</h2>
+            <h2 id="documentacionTitle" class="h3 mb-0">LEEME</h2>
           </header>
 
           <!--
@@ -550,5 +550,19 @@
          Maneja routing, README, GFM y proyectos.
     ========================================================== -->
     <script type="module" src="./scripts/app.js"></script>
+
+    <!-- =========================================================
+     BOTÓN VOLVER ARRIBA
+    ========================================================== -->
+    <button
+      id="backToTop"
+      type="button"
+      class="btn btn-dark rounded-circle position-fixed bottom-0 end-0 m-3 shadow-sm"
+      style="width: 42px; height: 42px; z-index: 1030"
+      aria-label="Volver arriba"
+      title="Volver arriba"
+    >
+      <i class="bi bi-arrow-up" aria-hidden="true"></i>
+    </button>
   </body>
 </html>
