@@ -9,7 +9,7 @@ utilizaron herramientas de inteligencia artificial durante el desarrollo.
 ## 📂 Contenido
 
 | Archivo | Etapa | Descripción |
-|---|---|---|
+| --- | --- | --- |
 | [`01-planificacion-portfolio.md`](./01-planificacion-portfolio.md) | Planificación | Prompt utilizado para definir el contexto y la propuesta inicial. |
 | [`02-correcciones-portfolio.md`](./02-correcciones-portfolio.md) | Revisión | Prompt utilizado para revisar y ajustar la implementación inicial. |
 
