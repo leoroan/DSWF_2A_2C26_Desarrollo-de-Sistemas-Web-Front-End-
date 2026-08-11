@@ -326,3 +326,410 @@ footer a:hover {
     transform: rotateY(360deg);
   }
 }
+
+/* ============================================================
+ * RÚBRICA DE EVALUACIÓN — OVERLAY SPA
+ * ============================================================ */
+
+/* ---------- Overlay ---------- */
+.rubric-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1055;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+/* El atributo hidden debe prevalecer sobre display:flex. */
+.rubric-overlay[hidden] {
+  display: none;
+}
+
+.rubric-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(13, 17, 23, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: rubricBackdropIn 0.2s ease-out;
+}
+
+/* ---------- Panel ---------- */
+.rubric-panel {
+  position: relative;
+  width: 100%;
+  max-width: 56rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  background: #ffffff;
+  border: 1px solid var(--dswf-border);
+  border-radius: 0.75rem;
+  box-shadow:
+    0 20px 50px rgba(13, 17, 23, 0.25),
+    0 4px 12px rgba(13, 17, 23, 0.12);
+  outline: none;
+  animation: rubricPanelIn 0.25s ease-out;
+}
+
+.rubric-content {
+  padding: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .rubric-content {
+    padding: 2rem;
+  }
+}
+
+/* ---------- Header ---------- */
+.rubric-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--dswf-border);
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.rubric-title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.rubric-subtitle {
+  font-size: 0.95rem;
+}
+
+/* ---------- Resumen ---------- */
+.rubric-summary {
+  margin-bottom: 1.75rem;
+}
+
+.rubric-global-result {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rubric-summary-card {
+  background: #fbfcfd;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.rubric-summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(13, 17, 23, 0.08);
+  border-color: var(--dswf-border);
+}
+
+.rubric-summary-index {
+  font-variant-numeric: tabular-nums;
+}
+
+.rubric-summary-title {
+  line-height: 1.35;
+  min-height: 2.7em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------- Badges de nivel ---------- */
+.rubric-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.rubric-badge-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+/* Nivel 1 — No cumple */
+.rubric-level-1 {
+  color: #9a3412;
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+/* Nivel 2 — Cumple */
+.rubric-level-2 {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+/* Nivel 3 — Propone */
+.rubric-level-3 {
+  color: #1d4ed8;
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+/* Nivel 4 — Supera */
+.rubric-level-4 {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+/* ---------- Criterios (acordeón) ---------- */
+.rubric-criteria {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rubric-criterion {
+  border: 1px solid var(--dswf-border) !important;
+  border-radius: 0.5rem !important;
+  overflow: hidden;
+}
+
+.rubric-criterion-title {
+  margin: 0;
+}
+
+.rubric-criterion-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  background: #ffffff;
+  border: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.rubric-criterion-toggle:hover {
+  background: #f6f8fa;
+}
+
+.rubric-criterion-toggle:focus-visible {
+  outline: 2px solid var(--dswf-accent);
+  outline-offset: -2px;
+}
+
+.rubric-criterion-number {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--dswf-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.rubric-criterion-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  flex: 1 1 auto;
+  line-height: 1.35;
+}
+
+.rubric-criterion-result {
+  flex-shrink: 0;
+}
+
+.rubric-criterion-icon {
+  flex-shrink: 0;
+  color: var(--dswf-muted);
+  transition: transform 0.2s ease;
+}
+
+.rubric-criterion-toggle[aria-expanded="true"] .rubric-criterion-icon {
+  transform: rotate(180deg);
+}
+
+.rubric-criterion-panel {
+  border-top: 1px solid var(--dswf-border);
+  background: #fbfcfd;
+}
+
+.rubric-criterion-body {
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.rubric-criterion-intro {
+  margin-bottom: 1rem;
+}
+
+/* ---------- Niveles ---------- */
+.rubric-levels {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rubric-level {
+  border: 1px solid var(--dswf-border);
+  border-radius: 0.375rem;
+  padding: 0.75rem 1rem;
+  background: #ffffff;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.rubric-level.is-current {
+  border-color: var(--dswf-accent);
+  box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.12);
+}
+
+.rubric-level-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.rubric-level-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: var(--dswf-muted);
+  flex-shrink: 0;
+}
+
+.rubric-level-1 .rubric-level-number {
+  background: #9a3412;
+}
+
+.rubric-level-2 .rubric-level-number {
+  background: #92400e;
+}
+
+.rubric-level-3 .rubric-level-number {
+  background: #1d4ed8;
+}
+
+.rubric-level-4 .rubric-level-number {
+  background: #166534;
+}
+
+.rubric-level-label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.rubric-current-tag {
+  margin-left: auto;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--dswf-accent);
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  white-space: nowrap;
+}
+
+.rubric-level-desc {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--dswf-muted);
+  line-height: 1.55;
+}
+
+/* ---------- Nota final ---------- */
+.rubric-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+/* ---------- Animaciones ---------- */
+@keyframes rubricBackdropIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rubricPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ---------- Responsive fino ---------- */
+@media (max-width: 575.98px) {
+  .rubric-overlay {
+    padding: 0.5rem;
+  }
+
+  .rubric-panel {
+    max-height: calc(100vh - 1rem);
+    border-radius: 0.5rem;
+  }
+
+  .rubric-content {
+    padding: 1rem;
+  }
+
+  .rubric-header {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .rubric-criterion-toggle {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .rubric-criterion-result {
+    margin-left: auto;
+  }
+
+  .rubric-current-tag {
+    display: none;
+  }
+}
+
+/* ---------- Prefers-reduced-motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .rubric-backdrop,
+  .rubric-panel {
+    animation: none;
+  }
+
+  .rubric-summary-card,
+  .rubric-criterion-toggle,
+  .rubric-criterion-icon {
+    transition: none;
+  }
+}

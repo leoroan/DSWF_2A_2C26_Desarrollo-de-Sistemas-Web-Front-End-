@@ -4,6 +4,8 @@
 
 ("use strict");
 
+import { initRubric } from "./rubric.js";
+
 /* ============================================================
  * 1. CONFIG
  * ============================================================ */
@@ -1045,6 +1047,7 @@ function init() {
   renderPortfolioProjects();
 
   initBackToTop();
+  initRubric();
 
   window.addEventListener("hashchange", () => {
     navigate({ initial: false });

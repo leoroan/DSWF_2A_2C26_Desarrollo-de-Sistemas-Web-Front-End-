@@ -116,6 +116,22 @@
             class="navbar-nav ms-auto align-items-md-center"
             id="navLinks"
           ></ul>
+
+          <!--
+            Botón para abrir la Rúbrica de Evaluación dentro de la SPA.
+            El overlay se genera dinámicamente desde scripts/rubric.js.
+          -->
+          <button
+            type="button"
+            class="btn btn-outline-dark btn-sm ms-md-3 mt-2 mt-md-0"
+            id="rubricToggle"
+            aria-haspopup="dialog"
+            aria-controls="rubricOverlay"
+            aria-expanded="false"
+          >
+            <i class="bi bi-clipboard-check me-1" aria-hidden="true"></i>
+            Ver rúbrica PFO1
+          </button>
         </div>
       </div>
     </nav>
