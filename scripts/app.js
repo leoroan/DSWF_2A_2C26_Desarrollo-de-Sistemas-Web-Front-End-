@@ -57,6 +57,16 @@ const CONFIG = {
       readme: "README.md",
       visible: false,
     },
+    {
+      id: "los-prompts",
+      repository: "leoroan/DSWF_2A_2C26_Desarrollo-de-Sistemas-Web-Front-End-",
+      branch: "los_prompts",
+      title: "Prompts utilizados",
+      description:
+        "Documentación de los prompts utilizados durante el desarrollo del portfolio.",
+      readme: "README.md",
+      visible: false,
+    },
   ],
 
   cache: {
