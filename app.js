@@ -25,10 +25,12 @@
  *     `javascript:` ni esquemas peligrosos.
  *   - Los enlaces externos se abren con rel="noopener noreferrer".
  *
- * Obtención del README:
- *   Se usa raw.githubusercontent.com (Alternativa A) en lugar de
- *   la API de GitHub: sin rate-limit, más simple, estable para
- *   repositorios públicos y compatible con GitHub Pages/Vercel.
+ * Obtención del contenido:
+ *   - README: raw.githubusercontent.com (sin rate-limit, simple,
+ *     estable para repositorios públicos).
+ *   - Validación de branch: GitHub API, únicamente cuando el
+ *     README no se encuentra, para diferenciar "branch inexistente"
+ *     de "branch existente sin README.md".
  *   El GFM se interpreta localmente con `marked` + DOMPurify,
  *   lo que da control total sobre la presentación y permite
  *   lazy-loading de Mermaid y highlight.js.
@@ -50,7 +52,7 @@ const CONFIG = {
     name: "Desarrollo de Sistemas Web",
     subtitle: "(Front End)",
     code: "DSWF_2A_2C26",
-    institution: "ISTF N°19",
+    institution: "IFTS N°29",
     student: "Leandro Maselli",
     github: "leoroan",
     intro:
@@ -74,6 +76,18 @@ const CONFIG = {
  * 2. Estado y cache
  * ============================================================ */
 const cache = new Map();
+
+// Protección contra condiciones de carrera de navegación:
+//  - `navigationToken` identifica la carga actual. Un resultado
+//    de una carga anterior se descarta si el token cambió.
+//  - `activeController` cancela el fetch en curso cuando el
+//    usuario navega a otro proyecto.
+let navigationToken = 0;
+let activeController = null;
+
+function isCurrentNavigation(token) {
+  return token === navigationToken;
+}
 
 function getCached(key) {
   const entry = cache.get(key);
@@ -126,6 +140,11 @@ const CDN_LIBS = {
     integrity:
       "sha384-rbtjAdnIQE/aQJGEgXrVUlMibdfTSa4PQju4HDhN3sR2PmaKFzhEafuePsl9H/9I",
   },
+  markedFootnote: {
+    url: "https://cdn.jsdelivr.net/npm/marked-footnote@1.4.0/dist/index.umd.js",
+    integrity:
+      "sha384-sHC+QyIpvHS4DSRd70Nup3IflHD1acxfrItwZcKrMjpWo4SXfiGB7G7xTjMObOXD",
+  },
 };
 
 function loadScript(lib, globalName) {
@@ -172,13 +191,14 @@ function getApiBranchUrl(branch) {
   return `https://api.github.com/repos/${CONFIG.github.owner}/${CONFIG.github.repository}/branches/${encodeURIComponent(branch)}`;
 }
 
-async function branchExists(branch) {
+async function branchExists(branch, signal) {
   const cached = getCached(`branch:${branch}`);
   if (cached !== null) return cached;
 
   try {
     const response = await fetch(getApiBranchUrl(branch), {
       headers: { Accept: "application/vnd.github+json" },
+      signal,
     });
     const exists = response.ok;
     setCached(`branch:${branch}`, exists);
@@ -194,13 +214,13 @@ function createFetchError(code) {
   return error;
 }
 
-async function fetchReadme(project) {
-  const response = await fetch(getRawReadmeUrl(project));
+async function fetchReadme(project, signal) {
+  const response = await fetch(getRawReadmeUrl(project), { signal });
 
   if (response.ok) return response.text();
 
   if (response.status === 404) {
-    const exists = await branchExists(project.branch);
+    const exists = await branchExists(project.branch, signal);
     if (exists === false) throw createFetchError("BRANCH_NOT_FOUND");
     throw createFetchError("README_NOT_FOUND");
   }
@@ -214,23 +234,46 @@ async function fetchReadme(project) {
  * Un README puede contener:
  *   ![Imagen](./assets/example.png)
  *   [Doc](./docs/documentacion.md)
+ *   [Volver](../README.md)
  *
  * Estos recursos se resuelven contra la branch correspondiente
- * del repositorio. Los enlaces externos se mantienen intactos.
+ * del repositorio, tomando como base el directorio del README.
+ * Los enlaces externos se mantienen intactos.
+ *
+ * Política de seguridad:
+ *   - `data:` solo se conserva en imágenes (data:image/...).
+ *   - En enlaces, `data:` se descarta (no es un enlace legítimo).
+ *   - DOMPurify sigue siendo la última barrera de sanitización.
  * ============================================================ */
 function isExternalUrl(url) {
-  return /^(https?:|mailto:|tel:|data:|#|\/\/)/i.test(url);
+  return /^(https?:|mailto:|tel:|#|\/\/)/i.test(url);
+}
+
+function isSafeDataImage(url) {
+  return /^data:image\//i.test(url);
+}
+
+function getReadmeDir(readmePath) {
+  const idx = readmePath.lastIndexOf("/");
+  return idx === -1 ? "" : readmePath.slice(0, idx + 1);
 }
 
 function resolveRelativeUrl(url, baseUrl) {
-  if (!url || isExternalUrl(url)) return url;
-  const normalized = url.replace(/^\.\//, "");
-  return baseUrl + normalized;
+  if (!url) return url;
+  if (isExternalUrl(url)) return url;
+  if (isSafeDataImage(url)) return url;
+
+  try {
+    return new URL(url, baseUrl).href;
+  } catch {
+    return url;
+  }
 }
 
 function applyResourceUrls(container, project) {
-  const rawBase = `https://raw.githubusercontent.com/${CONFIG.github.owner}/${CONFIG.github.repository}/${project.branch}/`;
-  const fileBase = `https://github.com/${CONFIG.github.owner}/${CONFIG.github.repository}/blob/${project.branch}/`;
+  const readmeDir = getReadmeDir(project.readme);
+  const rawBase = `https://raw.githubusercontent.com/${CONFIG.github.owner}/${CONFIG.github.repository}/${project.branch}/${readmeDir}`;
+  const fileBase = `https://github.com/${CONFIG.github.owner}/${CONFIG.github.repository}/blob/${project.branch}/${readmeDir}`;
 
   container.querySelectorAll("img[src]").forEach((img) => {
     const src = img.getAttribute("src");
@@ -238,6 +281,7 @@ function applyResourceUrls(container, project) {
     img.setAttribute("src", resolveRelativeUrl(src, rawBase));
     img.setAttribute("loading", "lazy");
     img.setAttribute("decoding", "async");
+    img.classList.add("img-fluid");
   });
 
   container.querySelectorAll("a[href]").forEach((link) => {
@@ -250,34 +294,37 @@ function applyResourceUrls(container, project) {
 /* ============================================================
  * 7. Renderizado Markdown (marked + DOMPurify)
  * ============================================================ */
-async function renderMarkdown(markdown, project) {
+async function renderMarkdown(markdown, project, token) {
   await Promise.all([
     loadScript(CDN_LIBS.marked, "marked"),
     loadScript(CDN_LIBS.dompurify, "DOMPurify"),
+    loadScript(CDN_LIBS.markedFootnote, "markedFootnote"),
   ]);
 
+  // Si el usuario navegó a otro proyecto mientras se cargaban las
+  // librerías, se descarta este renderizado.
+  if (!isCurrentNavigation(token)) return;
+
   window.marked.use({ gfm: true, breaks: false, async: false });
+  window.marked.use(window.markedFootnote());
 
   const rawHtml = window.marked.parse(markdown);
 
   // Sanitización obligatoria antes de insertar HTML en el DOM.
+  // `input` se permite únicamente como checkbox de task lists GFM
+  // (typeof checkbox + checked + disabled); cualquier otro input
+  // es eliminado.
   const cleanHtml = window.DOMPurify.sanitize(rawHtml, {
     USE_PROFILES: { html: true },
-    FORBID_TAGS: [
-      "style",
-      "form",
-      "input",
-      "button",
-      "iframe",
-      "object",
-      "embed",
-    ],
+    FORBID_TAGS: ["style", "form", "button", "iframe", "object", "embed"],
+    ADD_ATTR: ["type", "checked", "disabled"],
+    ALLOW_DATA_ATTR: true,
   });
 
   const container = $("documento");
   container.innerHTML = cleanHtml;
 
-  await postProcess(container, project);
+  await postProcess(container, project, token);
 }
 
 /* ============================================================
@@ -286,13 +333,18 @@ async function renderMarkdown(markdown, project) {
  * El HTML ya está sanitizado; aquí se aplican mejoras de
  * presentación y funcionalidad sin tocar la fuente Markdown.
  * ============================================================ */
-async function postProcess(container, project) {
+async function postProcess(container, project, token) {
+  if (!isCurrentNavigation(token)) return;
+
   applyResourceUrls(container, project);
   applyExternalLinkBehavior(container);
   wrapTables(container);
   applyGithubAlerts(container);
-  await initMermaid(container);
-  await highlightCode(container);
+
+  await initMermaid(container, token);
+  if (!isCurrentNavigation(token)) return;
+
+  await highlightCode(container, token);
 }
 
 function applyExternalLinkBehavior(container) {
@@ -393,13 +445,14 @@ function applyGithubAlerts(container) {
  * Mermaid solo se descarga si el documento contiene bloques
  * ```mermaid. Prioridad: funcionalidad > peso de descarga.
  */
-async function initMermaid(container) {
+async function initMermaid(container, token) {
   const mermaidBlocks = container.querySelectorAll(
     "pre > code.language-mermaid",
   );
   if (mermaidBlocks.length === 0) return;
 
   await loadScript(CDN_LIBS.mermaid, "mermaid");
+  if (!isCurrentNavigation(token)) return;
 
   mermaidBlocks.forEach((codeBlock) => {
     const pre = codeBlock.parentElement;
@@ -423,7 +476,7 @@ async function initMermaid(container) {
 }
 
 /* ---------- Syntax highlighting (lazy) ---------- */
-async function highlightCode(container) {
+async function highlightCode(container, token) {
   const codeBlocks = container.querySelectorAll("pre code");
   if (codeBlocks.length === 0) return;
 
@@ -431,6 +484,7 @@ async function highlightCode(container) {
     loadScript(CDN_LIBS.highlight, "hljs"),
     loadStylesheet(CDN_LIBS.highlightCss),
   ]);
+  if (!isCurrentNavigation(token)) return;
 
   codeBlocks.forEach((element) => {
     try {
@@ -491,6 +545,14 @@ function updateActiveNav(route) {
 /* ============================================================
  * 10. DOM rendering (hero, nav, documento)
  * ============================================================ */
+const NAV_ICONS = {
+  inicio: "bi-house",
+};
+
+function getProjectIcon(project) {
+  return NAV_ICONS[project.id] || "bi-folder2-open";
+}
+
 function renderIdentidad() {
   const { course } = CONFIG;
 
@@ -501,8 +563,13 @@ function renderIdentidad() {
   $("heroStudent").textContent = course.student;
 
   const githubLink = $("heroGithub");
-  githubLink.textContent = `@${course.github}`;
   githubLink.href = `https://github.com/${course.github}`;
+
+  // Conserva el icono <i> existente en el HTML y actualiza el texto.
+  const icon = githubLink.querySelector("i.bi");
+  githubLink.textContent = "";
+  if (icon) githubLink.appendChild(icon);
+  githubLink.appendChild(document.createTextNode(`@${course.github}`));
 
   $("heroIntro").textContent = course.intro;
 }
@@ -518,7 +585,13 @@ function renderNav() {
     const link = document.createElement("a");
     link.className = "nav-link";
     link.href = `#/${encodeURIComponent(project.id)}`;
-    link.textContent = project.title;
+
+    const icon = document.createElement("i");
+    icon.className = `bi ${getProjectIcon(project)} me-1`;
+    icon.setAttribute("aria-hidden", "true");
+
+    link.appendChild(icon);
+    link.appendChild(document.createTextNode(project.title));
 
     item.appendChild(link);
     navLinks.appendChild(item);
@@ -538,21 +611,24 @@ function renderLoading() {
 
 function renderProjectNotFound() {
   $("documento").innerHTML = `
-    <div class="alert alert-warning" role="alert">
+    <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
+      <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
       <p class="mb-0">No se encontró el proyecto solicitado.</p>
     </div>`;
 }
 
 function renderReadmeNotFound() {
   $("documento").innerHTML = `
-    <div class="alert alert-warning" role="alert">
+    <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
+      <i class="bi bi-file-earmark-text" aria-hidden="true"></i>
       <p class="mb-0">El branch existe pero no contiene README.md.</p>
     </div>`;
 }
 
 function renderLoadingError() {
   $("documento").innerHTML = `
-    <div class="alert alert-danger" role="alert">
+    <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
+      <i class="bi bi-exclamation-circle" aria-hidden="true"></i>
       <p class="mb-0">No fue posible cargar la documentación.</p>
     </div>`;
 }
@@ -574,6 +650,13 @@ function showError(error) {
  * Carga de un proyecto (branch del repositorio)
  * ============================================================ */
 async function loadProject(project) {
+  const token = ++navigationToken;
+
+  // Cancela la carga anterior si todavía está en curso.
+  if (activeController) activeController.abort();
+  const controller = new AbortController();
+  activeController = controller;
+
   document.title =
     project.id === CONFIG.projects[0].id
       ? `${CONFIG.course.name} — ${CONFIG.course.student}`
@@ -586,13 +669,18 @@ async function loadProject(project) {
     let markdown = getCached(cacheKey);
 
     if (markdown === null) {
-      markdown = await fetchReadme(project);
+      markdown = await fetchReadme(project, controller.signal);
       setCached(cacheKey, markdown);
     }
 
-    await renderMarkdown(markdown, project);
+    await renderMarkdown(markdown, project, token);
   } catch (error) {
+    // Navegación cancelada: no mostrar errores de la carga descartada.
+    if (error.name === "AbortError") return;
+    if (!isCurrentNavigation(token)) return;
     showError(error);
+  } finally {
+    if (activeController === controller) activeController = null;
   }
 }
 

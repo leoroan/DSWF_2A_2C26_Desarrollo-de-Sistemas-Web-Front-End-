@@ -72,10 +72,6 @@ body {
   margin-top: 0;
 }
 
-.documento p {
-  margin-bottom: 1rem;
-}
-
 .documento a {
   color: var(--dswf-accent);
   text-underline-offset: 0.15em;
@@ -86,9 +82,9 @@ body {
   text-decoration-thickness: 2px;
 }
 
+/* Responsive con .img-fluid de Bootstrap (max-width/height).
+   Aquí solo identidad visual. */
 .documento img {
-  max-width: 100%;
-  height: auto;
   border-radius: 0.25rem;
   border: 1px solid var(--dswf-border);
 }
