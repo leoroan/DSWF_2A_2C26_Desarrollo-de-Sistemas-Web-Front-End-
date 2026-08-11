@@ -4,12 +4,6 @@
 
 ---
 
-## Saber más
-
-- [Sobre este repositorio](#/about_this_repo)
-
----
-
 ## Licencia
 
 Sin licencia específica. Uso académico.

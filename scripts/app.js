@@ -47,6 +47,7 @@ const CONFIG = {
       title: "Sobre mí",
       description: "Información sobre mi perfil profesional en GitHub.",
       readme: "README.md",
+      visible: false,
     },
   ],
 
@@ -676,7 +677,9 @@ function renderPortfolioProjects() {
 
   container.innerHTML = "";
 
-  const projects = CONFIG.projects.filter((project) => !isHomeProject(project));
+  const projects = CONFIG.projects.filter(
+    (project) => !isHomeProject(project) && project.visible !== false,
+  );
 
   if (projects.length === 0) {
     const empty = document.createElement("p");
@@ -734,30 +737,32 @@ function renderNav() {
 
   navLinks.innerHTML = "";
 
-  CONFIG.projects.forEach((project) => {
-    const item = document.createElement("li");
+  CONFIG.projects
+    .filter((project) => project.visible !== false)
+    .forEach((project) => {
+      const item = document.createElement("li");
 
-    item.className = "nav-item";
+      item.className = "nav-item";
 
-    const link = document.createElement("a");
+      const link = document.createElement("a");
 
-    link.className = "nav-link";
-    link.href = `#/${encodeURIComponent(project.id)}`;
+      link.className = "nav-link";
+      link.href = `#/${encodeURIComponent(project.id)}`;
 
-    const icon = document.createElement("i");
+      const icon = document.createElement("i");
 
-    icon.className = isHomeProject(project)
-      ? "bi bi-house me-1"
-      : "bi bi-folder2-open me-1";
+      icon.className = isHomeProject(project)
+        ? "bi bi-house me-1"
+        : "bi bi-folder2-open me-1";
 
-    icon.setAttribute("aria-hidden", "true");
+      icon.setAttribute("aria-hidden", "true");
 
-    link.appendChild(icon);
-    link.appendChild(document.createTextNode(project.title));
+      link.appendChild(icon);
+      link.appendChild(document.createTextNode(project.title));
 
-    item.appendChild(link);
-    navLinks.appendChild(item);
-  });
+      item.appendChild(link);
+      navLinks.appendChild(item);
+    });
 }
 
 /* ============================================================
