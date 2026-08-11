@@ -49,6 +49,14 @@ const CONFIG = {
       readme: "README.md",
       visible: false,
     },
+    {
+      id: "los-prompts",
+      branch: "los_prompts",
+      title: "Los prompts",
+      description: "Prompts utilizados durante el desarrollo del portfolio.",
+      readme: "README.md",
+      visible: false,
+    },
   ],
 
   cache: {
