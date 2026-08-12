@@ -59,6 +59,15 @@ const CONFIG = {
       readme: "README.md",
       visible: false,
     },
+    {
+      id: "BlackJack",
+      repository: "leoroan/BlackJack",
+      branch: "main",
+      title: "BlackJack 21",
+      description:
+        " implementación funcional y completa del juego Blackjack (21), desarrollada específicamente para servir como objeto de pruebas automatizadas.",
+      readme: "README.md",
+    },
   ],
 
   cache: {
