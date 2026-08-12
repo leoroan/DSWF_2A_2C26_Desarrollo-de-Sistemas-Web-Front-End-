@@ -67,6 +67,7 @@ const CONFIG = {
       description:
         " implementación funcional y completa del juego Blackjack (21), desarrollada específicamente para servir como objeto de pruebas automatizadas.",
       readme: "README.md",
+      nav_visible: false,
     },
   ],
 
@@ -802,7 +803,9 @@ function renderNav() {
   navLinks.innerHTML = "";
 
   CONFIG.projects
-    .filter((project) => project.visible !== false)
+    .filter(
+      (project) => project.visible !== false && project.nav_visible !== false,
+    )
     .forEach((project) => {
       const item = document.createElement("li");
 
